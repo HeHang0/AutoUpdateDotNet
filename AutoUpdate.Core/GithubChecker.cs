@@ -13,7 +13,7 @@ namespace AutoUpdate.Core
         private string repository;
         private string asset;
         private (int major, int minor, int point) version;
-        private (int major, int minor, int point) remotrVersion;
+        private (int major, int minor, int point) remoteVersion;
         private string remoteDownloadUrl;
         private string localFilePath;
         private string ListReleaseUrl => $"https://api.github.com/repos/{owner}/{repository}/releases?per_page=1";
@@ -26,31 +26,31 @@ namespace AutoUpdate.Core
             this.version = ParseVersion(version);
         }
 
-        public async Task<bool> CheckUpdate()
+        public async Task<(bool, string)> CheckUpdate()
         {
             remoteDownloadUrl = string.Empty;
             var releases = await Utils.HttpGet(ListReleaseUrl);
             var release = releases?.ArrayFirst();
-            if(release == null) return false;
+            if(release == null) return (false, string.Empty);
             var tagName = release?.GetProperty("tag_name").GetString();
-            if (tagName == null) return false;
+            if (tagName == null) return (false, string.Empty);
             (int major, int minor, int point) newVersion = ParseVersion(tagName.ToString());
-            if (!CompareVersion(version, newVersion)) return false;
+            if (!CompareVersion(version, newVersion)) return (false, string.Empty);
             var assets = release?.GetProperty("assets");
-            if (assets == null) return false;
+            if (assets == null) return (false, string.Empty);
             foreach (var assetItem in assets?.EnumerateArray())
             {
                 var name = assetItem.GetProperty("name").GetString();
                 if(name == asset)
                 {
                     var browserDownloadUrl = assetItem.GetProperty("browser_download_url").GetString();
-                    if (browserDownloadUrl == null) return false;
+                    if (browserDownloadUrl == null) return (false, string.Empty);
                     remoteDownloadUrl = browserDownloadUrl;
-                    remotrVersion = newVersion;
-                    return true;
+                    remoteVersion = newVersion;
+                    return (true, $"{newVersion.major}.{newVersion.minor}.{newVersion.point}");
                 }
             }
-            return true;
+            return (false, string.Empty);
         }
 
         public bool CanUpdate()
@@ -58,13 +58,13 @@ namespace AutoUpdate.Core
             return !string.IsNullOrWhiteSpace(remoteDownloadUrl);
         }
 
-        public async Task<bool> DownloadPackage()
+        public async Task<bool> DownloadPackage(IProgress<int> progress = null)
         {
             var name = Path.GetFileNameWithoutExtension(asset);
             var extension = Path.GetExtension(asset);
             localFilePath = Path.Combine(Path.GetTempPath(), 
-                $"{name}v{remotrVersion.major}.{remotrVersion.minor}.{remotrVersion.point}${extension}");
-            return await Utils.DownloadFile(remoteDownloadUrl, localFilePath);
+                $"{name}v{remoteVersion.major}.{remoteVersion.minor}.{remoteVersion.point}{extension}");
+            return await Utils.DownloadFile(remoteDownloadUrl, localFilePath, progress);
         }
 
         public string GetPackagePath()
@@ -95,18 +95,18 @@ namespace AutoUpdate.Core
             int major = 0, minor = 0, point = 0;
             version = Regex.Replace(version, @"[^\.0-9]", "", RegexOptions.IgnoreCase).Trim().Trim('.');
             var versions = version.Split('.');
-            int length = versions.Length > 3 ? 3 : version.Length;
+            int length = versions.Length > 3 ? 3 : versions.Length;
             switch (length)
             {
-                case 2:
+                case 3:
                     int.TryParse(versions[2], out point);
-                    goto case 1;
-                case 1:
+                    goto case 2;
+                case 2:
                     int.TryParse(versions[1], out minor);
                     goto case 1;
-                case 0:
+                case 1:
                     int.TryParse(versions[0], out major);
-                    goto case 1;
+                    break;
             }
             return (major, minor, point);
         }

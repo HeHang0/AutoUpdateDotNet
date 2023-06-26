@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Threading;
 
 namespace AutoUpdate.Core
@@ -20,10 +21,12 @@ namespace AutoUpdate.Core
         {
             if(options.Interval != TimeSpan.Zero)
             {
+                Logger.Log.LogInformation("AutoUpdate Timer Start");
                 timer = new Timer(CheckUpdate, null, TimeSpan.Zero, options.Interval);
             }
             else
             {
+                Logger.Log.LogInformation("AutoUpdate Start Once");
                 CheckUpdate(null);
             }
             return this;
@@ -31,23 +34,26 @@ namespace AutoUpdate.Core
 
         private async void CheckUpdate(object state)
         {
-            bool needUpdate = await options.Checker.CheckUpdate();
+            (bool needUpdate, string version) = await options.Checker.CheckUpdate();
+            Logger.Log.LogInformation($"AutoUpdate CheckUpdate NeedUpdate: {needUpdate}, Version: {version}");
             if (needUpdate)
             {
-                NewPackageChecked?.Invoke(this, new PackageCheckedEventArgs(options.Checker));
+                NewPackageChecked?.Invoke(this, new PackageCheckedEventArgs(options.Checker, version));
             }
         }
 
-        public async void Update()
+        public async void Update(IInstaller installer,IProgress<int> progress = null)
         {
             if(!options.Checker.CanUpdate())
             {
+                progress?.Report(-1);
                 return;
             }
-            if(!await options.Checker.DownloadPackage())
+            if(!await options.Checker.DownloadPackage(progress))
             {
-
+                return;
             }
+            installer.Install(options.Checker.GetPackagePath());
         }
 
         public AutoUpdate Stop()
