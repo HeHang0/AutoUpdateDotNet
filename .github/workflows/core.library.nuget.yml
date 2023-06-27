@@ -1,0 +1,35 @@
+name: .NETStandard Library
+
+on:
+  release:
+    types: [ created ]
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Setup .NET Core
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 3.1.101
+
+    - name: Install dependencies
+      run: dotnet restore AutoUpdate.Core
+
+    - name: Build
+      run: dotnet build AutoUpdate.Core --configuration Release --no-restore
+
+    - name: Publish
+      run: dotnet publish AutoUpdate.Core --configuration Release --no-build
+
+    - name: Pack
+      run: dotnet pack AutoUpdate.Core --configuration Release --no-build -o out
+
+    - name: Push NuGet package
+      run: dotnet nuget push out/*.nupkg --source https://api.nuget.org/v3/index.json -k ${NUGET_AUTH_TOKEN}
+      env:
+        NUGET_AUTH_TOKEN: ${{secrets.NUGET_AUTH_TOKEN}}
