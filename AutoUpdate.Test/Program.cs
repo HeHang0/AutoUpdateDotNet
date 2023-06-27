@@ -6,9 +6,11 @@ Console.WriteLine("Hello, World!");
 void NewPackageChecked(AutoUpdate.Core.AutoUpdate sender, PackageCheckedEventArgs e)
 {
     Console.WriteLine($"[{DateTime.Now}] New Update: {e.Version}");
-    sender.Update(new SingleInstaller(), new Progress<int>(p =>
+    CancellationTokenSource cts = new CancellationTokenSource();
+    sender.Update(new SingleInstaller(), cts.Token, new Progress<int>(p =>
     {
         Console.WriteLine($"[{DateTime.Now}] Download Progress: {p}");
+        if(p == 50) cts.Cancel();
     }));
 }
 
