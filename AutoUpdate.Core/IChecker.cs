@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AutoUpdate.Core
@@ -7,7 +8,7 @@ namespace AutoUpdate.Core
     {
         Task<(bool, string)> CheckUpdate();
         bool CanUpdate();
-        Task<bool> DownloadPackage(IProgress<int> progress = null);
+        Task<bool> DownloadPackage(CancellationToken? token, IProgress<int> progress = null);
         string GetPackagePath();
     }
 }

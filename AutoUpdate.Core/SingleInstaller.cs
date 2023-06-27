@@ -1,20 +1,21 @@
-﻿using System;
+﻿using Microsoft.Extensions.Logging;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
+using System.Threading;
 
 namespace AutoUpdate.Core
 {
     public class SingleInstaller : IInstaller
     {
-        public void Install(string packagePath)
+        public void Install(CancellationToken? token, string packagePath)
         {
+            if(token?.IsCancellationRequested ?? false) return;
             var process = Process.GetCurrentProcess();
             var currentPath = process.MainModule.FileName;
-            Console.WriteLine("processId: " + process.Id);
-            Console.WriteLine("currentPath: " + currentPath);
-            Console.WriteLine("packagePath: " + packagePath);
+            Logger.Log.LogInformation($"Install [{currentPath}] with Package [{packagePath}]");
 
             var psText = @"
 param(
@@ -41,8 +42,8 @@ Start-Process -FilePath $currentPath";
                 FileName = "powershell.exe",
                 Arguments = $"-ExecutionPolicy Bypass -File \"{psFilePath}\" -currentPath \"{currentPath}\" -packagePath \"{packagePath}\"",
                 UseShellExecute = false,
-                RedirectStandardOutput = false,
-                CreateNoWindow = false
+                RedirectStandardOutput = true,
+                CreateNoWindow = true
             };
 
             new Process { StartInfo = startInfo }.Start();

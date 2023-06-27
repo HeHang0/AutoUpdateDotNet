@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Net.Http;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AutoUpdate.Core
@@ -36,7 +37,7 @@ namespace AutoUpdate.Core
             return null;
         }
 
-        public static async Task<bool> DownloadFile(string url, string filePath, IProgress<int> progress = null)
+        public static async Task<bool> DownloadFile(string url, string filePath, CancellationToken? token = null, IProgress<int> progress = null)
         {
             try
             {
@@ -62,6 +63,11 @@ namespace AutoUpdate.Core
                             int percentage = 0;
                             do
                             {
+                                if (token?.IsCancellationRequested ?? false)
+                                {
+                                    Logger.Log.LogWarning("Http Download be Canceled");
+                                    return false;
+                                }
                                 var read = await downloadStream.ReadAsync(buffer, 0, buffer.Length);
                                 if (read == 0)
                                 {

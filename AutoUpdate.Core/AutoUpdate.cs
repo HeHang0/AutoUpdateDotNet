@@ -42,18 +42,19 @@ namespace AutoUpdate.Core
             }
         }
 
-        public async void Update(IInstaller installer,IProgress<int> progress = null)
+        public async void Update(IInstaller installer, CancellationToken? token, IProgress<int> progress = null)
         {
-            if(!options.Checker.CanUpdate())
+            if(!options.Checker.CanUpdate() || (token?.IsCancellationRequested ?? false))
             {
                 progress?.Report(-1);
                 return;
             }
-            if(!await options.Checker.DownloadPackage(progress))
+            if(!await options.Checker.DownloadPackage(token, progress) || (token?.IsCancellationRequested ?? false))
             {
+                progress?.Report(-1);
                 return;
             }
-            installer.Install(options.Checker.GetPackagePath());
+            installer.Install(token, options.Checker.GetPackagePath());
         }
 
         public AutoUpdate Stop()

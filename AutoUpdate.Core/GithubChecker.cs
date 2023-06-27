@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AutoUpdate.Core
@@ -58,13 +59,13 @@ namespace AutoUpdate.Core
             return !string.IsNullOrWhiteSpace(remoteDownloadUrl);
         }
 
-        public async Task<bool> DownloadPackage(IProgress<int> progress = null)
+        public async Task<bool> DownloadPackage(CancellationToken? token,IProgress<int> progress = null)
         {
             var name = Path.GetFileNameWithoutExtension(asset);
             var extension = Path.GetExtension(asset);
             localFilePath = Path.Combine(Path.GetTempPath(), 
                 $"{name}v{remoteVersion.major}.{remoteVersion.minor}.{remoteVersion.point}{extension}");
-            return await Utils.DownloadFile(remoteDownloadUrl, localFilePath, progress);
+            return await Utils.DownloadFile(remoteDownloadUrl, localFilePath, token, progress);
         }
 
         public string GetPackagePath()
